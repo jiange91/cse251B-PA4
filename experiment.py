@@ -86,8 +86,7 @@ class Experiment(object):
     # TODO: Perform one training iteration on the whole dataset and return loss value
     def __train(self):
         self.__model.train()
-        training_loss = 0
-        iters = 0
+        training_loss = []
         # Iterate over the data, implement the training function
         for i, (images, captions, _) in enumerate(self.__train_loader):
             # print(images.size(), captions.size())
@@ -97,41 +96,59 @@ class Experiment(object):
             loss = self.__criterion(scores.transpose(1,2), captions)
             loss.backward()
             self.__optimizer.step()
-            training_loss += loss.item()
-            iters = i
-        return training_loss / (iters + 1)
+            training_loss.append(loss.item())
+            break
+        return np.mean(training_loss)
 
     # TODO: Perform one Pass on the validation set and return loss value. You may also update your best model here.
     def __val(self):
         self.__model.eval()
-        val_loss = 0
-
+        ls = []
         with torch.no_grad():
             for i, (images, captions, _) in enumerate(self.__val_loader):
                 scores = self.__model(images, captions)
-                val_loss = self.__criterion(scores, captions).item()
-
-        return val_loss
+                ls.append(self.__criterion(scores, captions).item())
+                break
+        return np.mean(ls)
 
     # TODO: Implement your test function here. Generate sample captions and evaluate loss and
     #  bleu scores using the best model. Use utility functions provided to you in caption_utils.
     #  Note than you'll need image_ids and COCO object in this case to fetch all captions to generate bleu scores.
     def test(self):
         self.__model.eval()
-        test_loss = 0
-        bleu1 = 0
-        bleu4 = 0
-
+        test_loss = []
+        b1, b4 = 0, 0
+        b1s = []
+        b4s = []
         with torch.no_grad():
             for iter, (images, captions, img_ids) in enumerate(self.__test_loader):
-                raise NotImplementedError()
-
-        result_str = "Test Performance: Loss: {}, Perplexity: {}, Bleu1: {}, Bleu4: {}".format(test_loss,
-                                                                                               bleu1,
-                                                                                               bleu4)
+                # get loss from teacher forcing
+                scores = self.__model(images, captions)
+                test_loss.append(self.__criterion(scores.transpose(1,2), captions).item())
+                
+                # auto-regressive generation
+                gen = self.__model.generate(images, self.__generation_config['max_length'], self.__generation_config['temperature']).tolist()
+                gen_captions = self.__vocab.decode(gen)
+                
+                # get BLEU
+                for b in range(images.size(0)):
+                    # print(img_ids[b])
+                    refs = [dict['caption'] for dict in self.__coco_test.imgToAnns[img_ids[b]]]
+                    # print(refs)
+                    # print(gen_captions[b])
+                    b1s.append(bleu1(refs, gen_captions[b]))
+                    b4s.append(bleu4(refs, gen_captions[b]))
+                    break
+                break
+        l, b1, b4 = np.mean(test_loss), np.mean(b1s), np.mean(b4s)
+        # PPL: https://huggingface.co/docs/transformers/perplexity
+        result_str = "Test Performance: Loss: {}, Perplexity: {}, Bleu1: {}, Bleu4: {}".format(l,
+                                                                                               np.exp(l),
+                                                                                               b1,
+                                                                                               b4)
         self.__log(result_str)
 
-        return test_loss, bleu1, bleu4
+        return test_loss, b1, b4
 
     def __save_model(self):
         root_model_path = os.path.join(self.__experiment_dir, 'latest_model.pt')

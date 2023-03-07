@@ -28,6 +28,20 @@ class Vocabulary(object):
     def __len__(self):
         return len(self.word2idx)
 
+    def decode(self, ids):
+        # ids python list: [batch, length]
+        blist = {
+            self.word2idx['<pad>'],
+            self.word2idx['<start>'],
+            self.word2idx['<end>'],
+            self.word2idx['<unk>'],
+        }
+        
+        ls = []
+        for i in range(len(ids)):
+            l = [self.idx2word[k] for k in ids[i] if k not in blist]
+            ls.append(l)
+        return ls
 
 def load_vocab(json, threshold):
     if os.path.isfile('savedVocab'):
