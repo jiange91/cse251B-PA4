@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+import torch.nn as nn
 from datetime import datetime
 
 from caption_utils import *
@@ -30,6 +31,7 @@ class Experiment(object):
         # Setup Experiment
         self.__generation_config = config_data['generation']
         self.__epochs = config_data['experiment']['num_epochs']
+        self.__lr = config_data['experiment']['learning_rate']
         self.__current_epoch = 0
         self.__training_losses = []
         self.__val_losses = []
@@ -39,8 +41,9 @@ class Experiment(object):
         self.__model = get_model(config_data, self.__vocab)
 
         # TODO: Set these Criterion and Optimizers Correctly
-        self.__criterion = None
-        self.__optimizer = None
+        self.__criterion = nn.CrossEntropyLoss()
+        self.__optimizer = torch.optim.Adam(params=filter(lambda p: p.requires_grad, self.__model.parameters()),
+                                            lr=self.__lr)
 
         self.__init_model()
 
@@ -84,12 +87,19 @@ class Experiment(object):
     def __train(self):
         self.__model.train()
         training_loss = 0
-
+        iters = 0
         # Iterate over the data, implement the training function
         for i, (images, captions, _) in enumerate(self.__train_loader):
-            raise NotImplementedError()
-
-        return training_loss
+            # print(images.size(), captions.size())
+            self.__optimizer.zero_grad()
+            scores = self.__model(images, captions)
+            # print(images.size(), scores.size(), captions.size())
+            loss = self.__criterion(scores.transpose(1,2), captions)
+            loss.backward()
+            self.__optimizer.step()
+            training_loss += loss.item()
+            iters = i
+        return training_loss / (iters + 1)
 
     # TODO: Perform one Pass on the validation set and return loss value. You may also update your best model here.
     def __val(self):
@@ -98,7 +108,8 @@ class Experiment(object):
 
         with torch.no_grad():
             for i, (images, captions, _) in enumerate(self.__val_loader):
-                raise NotImplementedError()
+                scores = self.__model(images, captions)
+                val_loss = self.__criterion(scores, captions).item()
 
         return val_loss
 
