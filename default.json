@@ -20,7 +20,8 @@
     "hidden_size": 512,
     "embedding_size": 300,
     "model_type": "baseline",
-    "keep_image": false
+    "keep_image": false,
+    "load_from": "best_model"
   },
   "generation": {
     "max_length": 20,

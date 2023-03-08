@@ -3,6 +3,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from datetime import datetime
+import copy
 
 from caption_utils import *
 from constants import ROOT_STATS_DIR
@@ -38,8 +39,10 @@ class Experiment(object):
         self.__training_losses = []
         self.__val_losses = []
         self.__best_model = None  # Save your best model in this field and use this in test method.
+        self.__best_loss = None
 
         # Init Model
+        self.__load_from = config_data['model']['load_from']
         self.__model = get_model(config_data, self.__vocab)
 
         # TODO: Set these Criterion and Optimizers Correctly
@@ -61,10 +64,10 @@ class Experiment(object):
             self.__val_losses = read_file_in_dir(self.__experiment_dir, 'val_losses.txt')
             self.__current_epoch = len(self.__training_losses)
 
-            state_dict = torch.load(os.path.join(self.__experiment_dir, 'latest_model.pt'))
+            state_dict = torch.load(os.path.join(self.__experiment_dir, '{}.pt'.format(self.__load_from)))
             self.__model.load_state_dict(state_dict['model'])
             self.__optimizer.load_state_dict(state_dict['optimizer'])
-
+            
         else:
             os.makedirs(self.__experiment_dir)
 
@@ -82,7 +85,9 @@ class Experiment(object):
             val_loss = self.__val()
             self.__record_stats(train_loss, val_loss)
             self.__log_epoch_stats(start_time)
-            self.__save_model()
+            self.__save_model(self.__model)
+            
+        self.__save_model(self.__best_model, model_name='best_model')
 
     # TODO: Perform one training iteration on the whole dataset and return loss value
     def __train(self):
@@ -125,8 +130,12 @@ class Experiment(object):
                                                     self.__generation_config['temperature']).tolist()
                     gen_captions = self.__vocab.decode(gen)
 #                 break
+        cur_loss = np.mean(ls)
+        if not self.__best_model or cur_loss < self.__best_loss:
+            self.__best_model, self.__best_loss = copy.deepcopy(self.__model), cur_loss
+
         print('epoch {}, sample caption: {}'.format(self.__current_epoch+1, ' '.join(gen_captions[0])))
-        return np.mean(ls)
+        return cur_loss
 
     # TODO: Implement your test function here. Generate sample captions and evaluate loss and
     #  bleu scores using the best model. Use utility functions provided to you in caption_utils.
@@ -149,6 +158,11 @@ class Experiment(object):
                 gen = self.__model.generate(images, self.__generation_config['max_length'], self.__generation_config['temperature']).tolist()
                 gen_captions = self.__vocab.decode(gen)
                 
+                if iter % 50 == 0:
+                    ground_truth = self.__coco_test.imgToAnns[img_ids[0]]
+                    print(ground_truth)
+                    print(gen_captions[0])
+                
                 # get BLEU
                 for b in range(images.size(0)):
                     # print(img_ids[b])
@@ -169,9 +183,9 @@ class Experiment(object):
 
         return test_loss, b1, b4
 
-    def __save_model(self):
-        root_model_path = os.path.join(self.__experiment_dir, 'latest_model.pt')
-        model_dict = self.__model.state_dict()
+    def __save_model(self, model, model_name='latest_model'):
+        root_model_path = os.path.join(self.__experiment_dir, '{}.pt'.format(model_name))
+        model_dict = model.state_dict()
         state_dict = {'model': model_dict, 'optimizer': self.__optimizer.state_dict()}
         torch.save(state_dict, root_model_path)
 
