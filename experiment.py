@@ -10,6 +10,8 @@ from dataset_factory import get_datasets
 from file_utils import *
 from model_factory import get_model
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print('using device {}'.format(device))
 
 # Class to encapsulate a neural experiment.
 # The boilerplate code to setup the experiment, log stats, checkpoints and plotting have been provided to you.
@@ -67,9 +69,8 @@ class Experiment(object):
             os.makedirs(self.__experiment_dir)
 
     def __init_model(self):
-        if torch.cuda.is_available():
-            self.__model = self.__model.cuda().float()
-            self.__criterion = self.__criterion.cuda()
+        self.__model = self.__model.to(device).float()
+        self.__criterion = self.__criterion.to(device)
 
     # Main method to run your experiment. Should be self-explanatory.
     def run(self):
@@ -90,25 +91,41 @@ class Experiment(object):
         # Iterate over the data, implement the training function
         for i, (images, captions, _) in enumerate(self.__train_loader):
             # print(images.size(), captions.size())
+            images = images.to(device)
+            captions = captions.to(device)
+            
             self.__optimizer.zero_grad()
             scores = self.__model(images, captions)
+#             print(scores.is_cuda, captions.is_cuda, next(self.__model.parameters()).is_cuda)
             # print(images.size(), scores.size(), captions.size())
             loss = self.__criterion(scores.transpose(1,2), captions)
+            training_loss.append(loss.item())
             loss.backward()
             self.__optimizer.step()
-            training_loss.append(loss.item())
-            break
+            if i % 100 == 0:
+                print("epoch {}, iter {}, loss: {}".format(self.__current_epoch+1, i, loss.item()))
+#             break
         return np.mean(training_loss)
 
     # TODO: Perform one Pass on the validation set and return loss value. You may also update your best model here.
     def __val(self):
         self.__model.eval()
         ls = []
+        gen_caption = []
         with torch.no_grad():
             for i, (images, captions, _) in enumerate(self.__val_loader):
+                images = images.to(device)
+                captions = captions.to(device)
+            
                 scores = self.__model(images, captions)
-                ls.append(self.__criterion(scores, captions).item())
-                break
+                ls.append(self.__criterion(scores.transpose(1,2), captions).item())
+                if not gen_caption:
+                    gen = self.__model.generate(images, 
+                                                    self.__generation_config['max_length'],
+                                                    self.__generation_config['temperature']).tolist()
+                    gen_captions = self.__vocab.decode(gen)
+#                 break
+        print('epoch {}, sample caption: {}'.format(self.__current_epoch+1, ' '.join(gen_captions[0])))
         return np.mean(ls)
 
     # TODO: Implement your test function here. Generate sample captions and evaluate loss and
@@ -122,6 +139,8 @@ class Experiment(object):
         b4s = []
         with torch.no_grad():
             for iter, (images, captions, img_ids) in enumerate(self.__test_loader):
+                images = images.to(device)
+                captions = captions.to(device)
                 # get loss from teacher forcing
                 scores = self.__model(images, captions)
                 test_loss.append(self.__criterion(scores.transpose(1,2), captions).item())
@@ -138,8 +157,8 @@ class Experiment(object):
                     # print(gen_captions[b])
                     b1s.append(bleu1(refs, gen_captions[b]))
                     b4s.append(bleu4(refs, gen_captions[b]))
-                    break
-                break
+#                     break
+#                 break
         l, b1, b4 = np.mean(test_loss), np.mean(b1s), np.mean(b4s)
         # PPL: https://huggingface.co/docs/transformers/perplexity
         result_str = "Test Performance: Loss: {}, Perplexity: {}, Bleu1: {}, Bleu4: {}".format(l,

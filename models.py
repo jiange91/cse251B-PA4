@@ -3,7 +3,10 @@ import numpy as np
 import torch.nn.functional as F
 import torch.nn as nn
 from torch.distributions import Categorical
-from torchvision.models import resnet50, ResNet50_Weights
+from torchvision.models import resnet50
+# from torchvision.models import ResNet50_Weights
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def temperature_softmax(scores, T):
     # scores [batch, 1, vocab]
@@ -14,7 +17,8 @@ class Encoder(nn.Module):
 		super(Encoder, self).__init__()
 
 		self.encoder = nn.Sequential(
-			*list(resnet50(weights=ResNet50_Weights.IMAGENET1K_V2).children())[:-1],
+# 			*list(resnet50(weights=ResNet50_Weights.IMAGENET1K_V2).children())[:-1],
+            *list(resnet50(pretrained=True).children())[:-1],
 		)
 		for param in self.encoder.parameters():
 			param.requires_grad = False
@@ -69,7 +73,7 @@ class BaseLine(nn.Module):
 		"""
 		seq_len = caption.size(1)
 		scores = torch.zeros(
-			(input.size(0), seq_len, self.vocab_size))
+			(input.size(0), seq_len, self.vocab_size)).to(device)
 
 		# Stage 0
 		encoder_embed = self.encoder(input).view(input.size(0), 1, -1)
@@ -90,7 +94,7 @@ class BaseLine(nn.Module):
 		input: [batch, 3, 256, 256]
 		output: [batch, max_seq_length]
   		"""
-		caption = torch.zeros((input.size(0), max_len), dtype=torch.long)
+		caption = torch.zeros((input.size(0), max_len), dtype=torch.long).to(device)
 		def sampling(output, i):
 			p = temperature_softmax(output, temperature).squeeze()
 			m = Categorical(p)
