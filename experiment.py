@@ -10,6 +10,7 @@ from constants import ROOT_STATS_DIR
 from dataset_factory import get_datasets
 from file_utils import *
 from model_factory import get_model
+import nltk
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print('using device {}'.format(device))
@@ -157,20 +158,24 @@ class Experiment(object):
                 # auto-regressive generation
                 gen = self.__model.generate(images, self.__generation_config['max_length'], self.__generation_config['temperature']).tolist()
                 gen_captions = self.__vocab.decode(gen)
-                
-                if iter % 50 == 0:
-                    ground_truth = self.__coco_test.imgToAnns[img_ids[0]]
-                    print(ground_truth)
-                    print(gen_captions[0])
-                
+
                 # get BLEU
                 for b in range(images.size(0)):
                     # print(img_ids[b])
-                    refs = [dict['caption'] for dict in self.__coco_test.imgToAnns[img_ids[b]]]
+                    ground_truth = self.__coco_test.imgToAnns[img_ids[b]]
+                    refs = [dict['caption'] for dict in ground_truth]
+                    ref_tokens = [nltk.tokenize.word_tokenize(s.lower()) for s in refs]
                     # print(refs)
                     # print(gen_captions[b])
-                    b1s.append(bleu1(refs, gen_captions[b]))
-                    b4s.append(bleu4(refs, gen_captions[b]))
+                    b1s.append(bleu1(ref_tokens, gen_captions[b]))
+                    b4s.append(bleu4(ref_tokens, gen_captions[b]))
+                                    
+                    if iter % 50 == 0 and b == 0:
+                        print(ground_truth)
+                        print(gen_captions[b])
+                        print(b1s[-1], b4s[-1])
+                        print('-' * 20)
+                
 #                     break
 #                 break
         l, b1, b4 = np.mean(test_loss), np.mean(b1s), np.mean(b4s)
