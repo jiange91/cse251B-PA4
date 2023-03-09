@@ -6,13 +6,12 @@ from datetime import datetime
 import copy
 
 from caption_utils import *
-from constants import ROOT_STATS_DIR
+from constants import ROOT_STATS_DIR, device
 from dataset_factory import get_datasets
 from file_utils import *
 from model_factory import get_model
 import nltk
 
-from device import device
 # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 print('using device {}'.format(device))

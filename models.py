@@ -6,7 +6,7 @@ from torch.distributions import Categorical
 from torchvision.models import resnet50
 # from torchvision.models import ResNet50_Weights
 
-from device import device
+from constants import device
 # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
@@ -119,18 +119,18 @@ class BaseLine(nn.Module):
             o, h = self.decoder(embed_token, h)
             sampling(o, i+1)
         return caption
-    
 
-class BaseLine2(BaseLine):
+
+class BaseLine2(nn.Module):
     def __init__(self, vocab_size, embed_size, h_size, decoder_type='LSTM'):
-        super(BaseLine2, self).__init__(vocab_size, embed_size, h_size, decoder_type)
+        super(BaseLine2, self).__init__()
         self.vocab_size = vocab_size
         self.embed_size = embed_size
         self.h_size = h_size
 
         self.we = nn.Embedding(vocab_size, embed_size)
         self.encoder = Encoder(out_size=embed_size)
-        self.decoder = Decoder(vocab_size, embed_size + 2048, h_size, decoder_type)
+        self.decoder = Decoder(vocab_size, self.embed_size*2, h_size, decoder_type)
 
     def forward(self, input, caption):
         """
@@ -139,87 +139,27 @@ class BaseLine2(BaseLine):
         output: [batch, max_seq_length, vocab_size]
         """
         seq_len = caption.size(1)
-        scores = torch.zeros(
-            (input.size(0), seq_len, self.vocab_size)).to(device)
+        scores = torch.zeros((input.size(0), seq_len, self.vocab_size)).to(device)
 
         # Stage 0
-        encoder_embed = self.encoder(input).view(input.size(0), 1, -1)
-#         print("after encoder")
-        o, h = self.decoder(encoder_embed)
-        scores[:, 0, :] = o.squeeze()
-
-      # Stage 1
-        embed_caption = self.we(caption)  # [batch, max_seq_length, embed_size]
-        for i in range(seq_len - 1):
-            # no need to forward end/pad token
-            o, h = self.decoder(embed_caption[:, i:i+1, :], h)
-            scores[:, i+1, :] = o.squeeze()
-        
-        return scores
-
-    def generate(self, input, max_len=20, temperature=0.5):
-        """
-        input: [batch, 3, 256, 256]
-        output: [batch, max_seq_length]
-        """
-        caption = torch.zeros((input.size(0), max_len),dtype=torch.long).to(device)
-
-        def sampling(output, i):
-            p = temperature_softmax(output, temperature).squeeze()
-            m = Categorical(p)
-            caption[:, i] = m.sample()
-
-        encoder_embed = self.encoder(input).view(input.size(0), 1, -1)
-        o, h = self.decoder(encoder_embed)
-        sampling(o, 0)
-
-        for i in range(max_len - 1):
-            embed_token = self.we(caption[:, i:i+1])
-            o, h = self.decoder(embed_token, h)
-            sampling(o, i+1)
-        return caption
-    
-
-class BaseLine2(BaseLine):
-    def __init__(self, vocab_size, embed_size, h_size, decoder_type='LSTM'):
-        super(BaseLine2, self).__init__(vocab_size, embed_size, h_size, decoder_type)
-        self.vocab_size = vocab_size
-        self.embed_size = embed_size
-        self.h_size = h_size
-
-        self.we = nn.Embedding(vocab_size, embed_size)
-        self.encoder = Encoder(out_size=embed_size)
-        self.decoder = Decoder(vocab_size, self.embed_size *2, h_size, decoder_type)
-
-    def forward(self, input, caption):
-        """
-        input: [batch, 3, 256, 256]
-        caption: [batch, max_seq_length]
-        output: [batch, max_seq_length, vocab_size]
-        """
-        seq_len = caption.size(1)
-        scores = torch.zeros(
-            (input.size(0), seq_len, self.vocab_size)).to(device)
-
-        # Stage 0
-        encoder_embed = self.encoder(input).view(input.size(0), 1, -1)
+        encoder_embed = self.encoder(input).view(input.size(0), 1, -1) # [batch size, 1, 300]
 #         raise Exception(f'shape={encoder_embed.shape}')
 #         print("after encoder")
-        padding = torch.zeros(encoder_embed.shape).to(device)
-        o, h = self.decoder(torch.cat((encoder_embed, padding), dim=2)) #[batch size, 600]#torch.cat((tensor_1, tensor_2), dim=1)
-        scores[:, 0, :] = o.squeeze()
+
+        padding = torch.zeros((caption.size(0),1),dtype=torch.long).to(device)
+        embed_caption = self.we(torch.cat((padding,caption),dim=1))  # [batch, seq_length+1, embed_size]
+#         o, h = self.decoder(torch.cat((padding,encoder_embed), dim=2)) # [batch size, 600]
+#         scores[:, 0, :] = o.squeeze()
         
 
-      # Stage 1
-        # tf.concat([tensor_128_1_2048, tf.expand_dims(vector_128_2048, axis=1)], axis=1)
-        embed_caption = self.we(caption)  # [batch, max_seq_length, embed_size]
-        for i in range(seq_len - 1):
-            # no need to forward end/pad token
-            
-            o, h = self.decoder(torch.cat((embed_caption[:, i:i+1, :],encoder_embed), axis=2), h)#self.decoder(embed_caption[:, i:i+1, :], h)
-
-            scores[:, i+1, :] = o.squeeze()
-        
+        # Stage 1
+        h = None
+        for i in range(seq_len):
+        # no need to forward end/pad token
+            o, h = self.decoder(torch.cat((embed_caption[:, i:i+1, :],encoder_embed), dim=2), h)
+        # self.decoder(embed_caption[:, i:i+1, :], h)
+        # scores[:, i+1, :] = o.squeeze()
+            scores[:, i, :] = o.squeeze()
         return scores
 
     def generate(self, input, max_len=20, temperature=0.5):
@@ -227,7 +167,25 @@ class BaseLine2(BaseLine):
         input: [batch, 3, 256, 256]
         output: [batch, max_seq_length]
         """
-        caption = torch.zeros((input.size(0), max_len),dtype=torch.long).to(device)
+#         caption = torch.zeros((input.size(0), max_len),dtype=torch.long).to(device)
+
+#         def sampling(output, i):
+#             p = temperature_softmax(output, temperature).squeeze()
+#             m = Categorical(p)
+#             caption[:, i] = m.sample()
+
+#         encoder_embed = self.encoder(input).view(input.size(0), 1, -1)
+#         padding = torch.zeros(encoder_embed.shape).to(device)
+#         o, h = self.decoder(torch.cat((padding, encoder_embed), dim=2))
+#         sampling(o, 0)
+
+#         for i in range(max_len - 1):
+#             embed_token = self.we(caption[:, i:i+1])
+#             o, h = self.decoder(torch.cat((embed_token, encoder_embed), dim=2), h) # (embed_token, h)
+#             sampling(o, i+1)
+#         return caption
+
+        caption = torch.zeros((input.size(0), max_len+1),dtype=torch.long).to(device)
 
         def sampling(output, i):
             p = temperature_softmax(output, temperature).squeeze()
@@ -235,12 +193,10 @@ class BaseLine2(BaseLine):
             caption[:, i] = m.sample()
 
         encoder_embed = self.encoder(input).view(input.size(0), 1, -1)
-        padding = torch.zeros(encoder_embed.shape).to(device)
-        o, h = self.decoder(torch.cat((encoder_embed, padding), dim=2))
-        sampling(o, 0)
 
-        for i in range(max_len - 1):
+        h = None
+        for i in range(max_len):
             embed_token = self.we(caption[:, i:i+1])
-            o, h = self.decoder(torch.cat((embed_token, encoder_embed), axis=2), h)#(embed_token, h)
-            sampling(o, i+1)
+            o, h = self.decoder(torch.cat((embed_token, encoder_embed), dim=2), h) # (embed_token, h)
+            sampling(o, i)
         return caption
