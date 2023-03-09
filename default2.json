@@ -1,5 +1,5 @@
 {
-  "experiment_name": "default_experiment",
+  "experiment_name": "default2_experiment",
   "dataset": {
     "training_ids_file_path": "./train_ids.csv",
     "validation_ids_file_path": "./val_ids.csv",
@@ -19,7 +19,7 @@
   "model": {
     "hidden_size": 512,
     "embedding_size": 300,
-    "model_type": "baseline",
+    "model_type": "baseline2",
     "keep_image": false,
     "load_from": "best_model"
   },

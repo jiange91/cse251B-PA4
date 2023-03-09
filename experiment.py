@@ -12,7 +12,9 @@ from file_utils import *
 from model_factory import get_model
 import nltk
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+from device import device
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 print('using device {}'.format(device))
 
 # Class to encapsulate a neural experiment.

@@ -1,5 +1,5 @@
 {
-  "experiment_name": "default_experiment",
+  "experiment_name": "tuned_experiment",
   "dataset": {
     "training_ids_file_path": "./train_ids.csv",
     "validation_ids_file_path": "./val_ids.csv",
@@ -17,8 +17,8 @@
     "learning_rate": 5e-4
   },
   "model": {
-    "hidden_size": 512,
-    "embedding_size": 300,
+    "hidden_size": 400,
+    "embedding_size": 512,
     "model_type": "baseline",
     "keep_image": false,
     "load_from": "best_model"
