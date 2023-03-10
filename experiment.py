@@ -89,6 +89,7 @@ class Experiment(object):
             self.__log_epoch_stats(start_time)
             self.__save_model(self.__model)
             
+        self.__model = self.__best_model
         self.__save_model(self.__best_model, model_name='best_model')
 
     # TODO: Perform one training iteration on the whole dataset and return loss value

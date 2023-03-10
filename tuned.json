@@ -9,7 +9,7 @@
     "images_root_dir": "./data/images/",
     "vocabulary_threshold": 2,
     "img_size": 256,
-    "batch_size": 128,
+    "batch_size": 64,
     "num_workers": 4
   },
   "experiment": {
@@ -18,7 +18,7 @@
   },
   "model": {
     "hidden_size": 400,
-    "embedding_size": 512,
+    "embedding_size": 300,
     "model_type": "baseline",
     "keep_image": false,
     "load_from": "best_model"

@@ -17,14 +17,14 @@
     "learning_rate": 5e-4
   },
   "model": {
-    "hidden_size": 512,
+    "hidden_size": 1000,
     "embedding_size": 300,
     "model_type": "baseline",
     "keep_image": false,
     "load_from": "best_model"
   },
   "generation": {
-    "max_length": 20,
+    "max_length": 30,
     "deterministic": false,
     "temperature": 0.1
   }
