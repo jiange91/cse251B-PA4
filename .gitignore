@@ -2,3 +2,4 @@ data/*
 dataset/*
 __pycache__/
 **/*.pt
+experiment_data/*

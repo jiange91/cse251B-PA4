@@ -6,7 +6,8 @@ import numpy as np
 import nltk
 from PIL import Image
 from pycocotools.coco import COCO
-
+from torchvision.transforms import RandomResizedCrop
+from torchvision.transforms.functional import rotate, vflip, hflip, resized_crop
 
 class CocoDataset(data.Dataset):
     """COCO Custom Dataset compatible with torch.utils.data.DataLoader."""
@@ -31,6 +32,7 @@ class CocoDataset(data.Dataset):
 
         self.resize = transforms.Compose(
             [transforms.Resize(img_size, interpolation=2), transforms.CenterCrop(img_size)])
+        self.aug = transform
 
     def __getitem__(self, index):
         """Returns one data pair (image and caption)."""
@@ -42,6 +44,8 @@ class CocoDataset(data.Dataset):
         path = coco.loadImgs(img_id)[0]['file_name'];
         image = Image.open(os.path.join(self.root, path)).convert('RGB')
         image = self.resize(image)
+        if self.aug:
+            image = self.aug(image)
         image = self.normalize(np.asarray(image))
 
         # Convert caption (string) to word ids.
