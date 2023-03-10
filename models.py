@@ -106,9 +106,13 @@ class BaseLine(nn.Module):
                               dtype=torch.long).to(device)
 
         def sampling(output, i):
-            p = temperature_softmax(output, temperature).squeeze()
-            m = Categorical(p)
-            caption[:, i] = m.sample()
+            if temperature == 0:
+                p = temperature_softmax(output, 1).squeeze()
+                caption[:, i] = p.argmax()
+            else:
+                p = temperature_softmax(output, temperature).squeeze()
+                m = Categorical(p)
+                caption[:, i] = m.sample()
 
         encoder_embed = self.encoder(input).view(input.size(0), 1, -1)
         o, h = self.decoder(encoder_embed)
@@ -170,9 +174,13 @@ class BaseLine2(nn.Module):
         caption = torch.zeros((input.size(0), max_len),dtype=torch.long).to(device)
 
         def sampling(output, i):
-            p = temperature_softmax(output, temperature).squeeze()
-            m = Categorical(p)
-            caption[:, i] = m.sample()
+            if temperature == 0:
+                p = temperature_softmax(output, 1).squeeze()
+                caption[:, i] = p.argmax()
+            else:
+                p = temperature_softmax(output, temperature).squeeze()
+                m = Categorical(p)
+                caption[:, i] = m.sample()
 
         encoder_embed = self.encoder(input).view(input.size(0), 1, -1)
         padding = torch.zeros((input.size(0), 1),dtype=torch.long).to(device)

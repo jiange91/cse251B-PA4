@@ -10,21 +10,22 @@
     "vocabulary_threshold": 2,
     "img_size": 256,
     "batch_size": 128,
-    "num_workers": 4
+    "num_workers": 4,
+    "aug_flags": []
   },
   "experiment": {
     "num_epochs": 10,
     "learning_rate": 5e-4
   },
   "model": {
-    "hidden_size": 1000,
+    "hidden_size": 512,
     "embedding_size": 300,
     "model_type": "baseline",
     "keep_image": false,
     "load_from": "best_model"
   },
   "generation": {
-    "max_length": 30,
+    "max_length": 20,
     "deterministic": false,
     "temperature": 0.1
   }

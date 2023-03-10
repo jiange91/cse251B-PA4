@@ -10,7 +10,12 @@
     "vocabulary_threshold": 2,
     "img_size": 256,
     "batch_size": 128,
-    "num_workers": 4
+    "num_workers": 4,
+    "aug_flags": [
+	"rhFlip",
+	"rCrop",
+	"rRotation"
+    ]
   },
   "experiment": {
     "num_epochs": 10,

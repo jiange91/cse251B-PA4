@@ -30,8 +30,7 @@ class Experiment(object):
         self.__experiment_dir = os.path.join(ROOT_STATS_DIR, self.__name)
 
         # Load Datasets
-        self.__coco_test, self.__vocab, self.__train_loader, self.__val_loader, self.__test_loader = get_datasets(
-            config_data)
+        self.__coco_test, self.__vocab, self.__train_loader, self.__val_loader, self.__test_loader = get_datasets(config_data)
 
         # Setup Experiment
         self.__generation_config = config_data['generation']
@@ -232,3 +231,15 @@ class Experiment(object):
         plt.title(self.__name + " Stats Plot")
         plt.savefig(os.path.join(self.__experiment_dir, "stat_plot.png"))
         plt.show()
+
+    def test_loader(self):
+        return self.__test_loader
+    
+    def test_coco(self):
+        return self.__coco_test
+    
+    def model(self):
+        return self.__model
+
+    def vocab(self):
+        return self.__vocab
